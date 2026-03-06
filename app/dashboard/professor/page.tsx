@@ -1,47 +1,33 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { useAuth } from "@/lib/auth-context"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { StatCard } from "@/components/ui/stat-card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { PROFESSOR_TURMAS, AVISOS, MENSAGENS } from "@/lib/mock-data"
+import { getTurmasProfessor, type TurmaProfessor } from "@/lib/api"
 import {
-  Users,
-  BookOpen,
-  TrendingUp,
-  Award,
-  BarChart3,
-  ArrowRight,
-  Bell,
-  MessageSquare,
-  Clock,
-  CheckCircle2,
+  Users, BookOpen, Clock, TrendingUp, Plus, Send,
+  Calendar, FileText, HelpCircle, ChevronRight,
+  ClipboardList, Loader2
 } from "lucide-react"
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from "recharts"
 import Link from "next/link"
+
+const CRONOGRAMA = [
+  { disciplina: "Prova Trimestral - 10ª A", tipo: "Avaliação Escrita", data: "Hoje às 10:30", cor: "text-red-500 bg-red-100 dark:bg-red-500/20" },
+  { disciplina: "Entrega de Projetos - 9º B", tipo: "Trabalho em Grupo", data: "Amanhã", cor: "text-blue-500 bg-blue-100 dark:bg-blue-500/20" },
+  { disciplina: "Teste de Recuperação - 12º C", tipo: "Teste Oral", data: "20/10/2023", cor: "text-orange-500 bg-orange-100 dark:bg-orange-500/20" },
+  { disciplina: "Simulado Geral", tipo: "Múltipla Escolha", data: "25/10/2023", cor: "text-purple-500 bg-purple-100 dark:bg-purple-500/20" },
+]
 
 export default function ProfessorDashboard() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuth()
+  const [turmas, setTurmas] = useState<TurmaProfessor[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!isAuthenticated || user?.type !== "professor") {
@@ -49,340 +35,199 @@ export default function ProfessorDashboard() {
     }
   }, [isAuthenticated, user, router])
 
-  if (!isAuthenticated || user?.type !== "professor") {
-    return null
-  }
+  useEffect(() => {
+    if (!user?.id) return
+    getTurmasProfessor(user.id)
+      .then((res) => setTurmas(res.data || []))
+      .finally(() => setLoading(false))
+  }, [user?.id])
 
-  const totalAlunos = PROFESSOR_TURMAS.reduce((acc, t) => acc + t.totalAlunos, 0)
-  const mediaGeralTurmas = PROFESSOR_TURMAS.reduce((acc, t) => acc + t.mediaGeral, 0) / PROFESSOR_TURMAS.length
-  const totalPendentes = PROFESSOR_TURMAS.reduce((acc, t) => acc + (t.notasPendentes || 0), 0)
+  if (!isAuthenticated || user?.type !== "professor") return null
 
-  const distribuicaoNotas = [
-    { range: "0-9", count: 5, fill: "#F43F5E" },
-    { range: "10-13", count: 22, fill: "#F97316" },
-    { range: "14-16", count: 38, fill: "#14B8A6" },
-    { range: "17-20", count: 20, fill: "#10B981" },
-  ]
-
-  const aprovacaoData = [
-    { name: "Aprovados", value: 78, fill: "#10B981" },
-    { name: "Em curso", value: 15, fill: "#14B8A6" },
-    { name: "Reprovados", value: 7, fill: "#F43F5E" },
-  ]
-
-  const evolucaoMedia = [
-    { mes: "Set", media: 12.8 },
-    { mes: "Out", media: 13.5 },
-    { mes: "Nov", media: 14.2 },
-    { mes: "Dez", media: 14.5 },
-    { mes: "Jan", media: 14.8 },
-    { mes: "Fev", media: 14.5 },
-  ]
-
-  const mensagensNaoLidas = MENSAGENS.filter((m) => !m.lida && m.tipo === "recebida").length
-  const avisosRecentes = AVISOS.filter((a) => a.destinatarios === "professores" || a.destinatarios === "todos").slice(
-    0,
-    3,
-  )
+  const totalAlunos = turmas.reduce((s, t) => s + Number(t.total_alunos), 0)
 
   return (
     <div className="min-h-screen bg-background">
-      {/* CHANGE: Improved layout with flex for responsiveness */}
-      <div className="flex flex-col lg:flex-row min-h-screen">
-        <DashboardSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <DashboardHeader />
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+      <DashboardSidebar />
+      <div className="ml-64 transition-all duration-300">
+        <DashboardHeader />
+        <main className="p-6">
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="Turmas" value={PROFESSOR_TURMAS.length} icon={BookOpen} variant="primary" />
-                <StatCard title="Total Alunos" value={totalAlunos} icon={Users} variant="secondary" />
-                <StatCard
-                  title="Média Geral"
-                  value={mediaGeralTurmas.toFixed(1)}
-                  icon={TrendingUp}
-                  trend={{ value: 1.2, label: "este período" }}
-                  variant="success"
-                />
-                <StatCard title="Notas Pendentes" value={totalPendentes} icon={Clock} variant="warning" />
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold">Painel de Controle</h1>
+                  <p className="text-muted-foreground mt-1">
+                    Bem-vindo de volta, Prof. {user.nome.split(" ").slice(-1)[0]}. Aqui está o resumo das suas turmas hoje.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" className="gap-2">
+                    <Plus className="w-4 h-4" />Nova Avaliação
+                  </Button>
+                  <Button className="gap-2 bg-primary hover:bg-primary/90" asChild>
+                    <Link href="/dashboard/professor/notas">
+                      <Send className="w-4 h-4" />Lançar Notas
+                    </Link>
+                  </Button>
+                </div>
               </div>
 
-              {/* Quick Actions */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Link href="/dashboard/professor/notas">
-                  <Card className="card-hover cursor-pointer group h-full">
-                    <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
-                        <BookOpen className="w-6 h-6 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">Lançar Notas</p>
-                        <p className="text-sm text-muted-foreground">{totalPendentes} pendentes</p>
-                      </div>
-                      <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
-                    </CardContent>
-                  </Card>
-                </Link>
-                <Link href="/dashboard/professor/turmas">
-                  <Card className="card-hover cursor-pointer group h-full">
-                    <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-colors flex-shrink-0">
-                        <Users className="w-6 h-6 text-secondary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">Minhas Turmas</p>
-                        <p className="text-sm text-muted-foreground">{PROFESSOR_TURMAS.length} turmas</p>
-                      </div>
-                      <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-secondary transition-colors flex-shrink-0" />
-                    </CardContent>
-                  </Card>
-                </Link>
-                <Link href="/dashboard/professor/relatorios">
-                  <Card className="card-hover cursor-pointer group h-full">
-                    <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors flex-shrink-0">
-                        <BarChart3 className="w-6 h-6 text-accent" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">Relatórios</p>
-                        <p className="text-sm text-muted-foreground">Análises</p>
-                      </div>
-                      <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-accent transition-colors flex-shrink-0" />
-                    </CardContent>
-                  </Card>
-                </Link>
-                <Link href="/dashboard/professor/mensagens">
-                  <Card className="card-hover cursor-pointer group h-full">
-                    <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 relative">
-                      <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center group-hover:bg-success/20 transition-colors flex-shrink-0 relative">
-                        <MessageSquare className="w-6 h-6 text-success" />
-                        {mensagensNaoLidas > 0 && (
-                          <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white text-xs rounded-full flex items-center justify-center">
-                            {mensagensNaoLidas}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">Mensagens</p>
-                        <p className="text-sm text-muted-foreground">{mensagensNaoLidas} não lidas</p>
-                      </div>
-                      <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-success transition-colors flex-shrink-0" />
-                    </CardContent>
-                  </Card>
-                </Link>
+              {/* Stats */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { icon: Users, label: "Total de Alunos", value: totalAlunos || "142", sub: "+3 este mês / Em 5 turmas ativas", iconBg: "bg-primary/10", iconColor: "text-primary" },
+                  { icon: BookOpen, label: "Turmas Activas", value: turmas.length || "05", sub: "Matutino e Vespertino", iconBg: "bg-green-100 dark:bg-green-500/20", iconColor: "text-green-600" },
+                  { icon: Clock, label: "Pendências", value: "12", sub: "Urgente — Notas para lançar", iconBg: "bg-yellow-100 dark:bg-yellow-500/20", iconColor: "text-yellow-600" },
+                  { icon: TrendingUp, label: "Média Geral", value: "16.4", sub: "+0.5 pts — Desempenho académico", iconBg: "bg-blue-100 dark:bg-blue-500/20", iconColor: "text-blue-600" },
+                ].map((s, i) => (
+                  <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                    <Card>
+                      <CardContent className="p-5">
+                        <div className={`w-10 h-10 rounded-xl ${s.iconBg} flex items-center justify-center mb-3`}>
+                          <s.icon className={`w-5 h-5 ${s.iconColor}`} />
+                        </div>
+                        <p className="text-sm text-muted-foreground">{s.label}</p>
+                        <p className="text-3xl font-bold mt-0.5">{s.value}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
               </div>
 
-              {/* Charts */}
+              {/* Turmas + Sidebar */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Evolução da Média */}
-                <Card className="lg:col-span-2 overflow-x-auto">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-primary" />
-                      Evolução da Média das Turmas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={250} minWidth={250}>
-                      <LineChart data={evolucaoMedia}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="mes" className="text-xs" />
-                        <YAxis domain={[10, 20]} className="text-xs" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgb(var(--card))",
-                            border: "1px solid rgb(var(--border))",
-                            borderRadius: "12px",
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="media"
-                          stroke="#14B8A6"
-                          strokeWidth={3}
-                          dot={{ fill: "#14B8A6", strokeWidth: 2, r: 4 }}
-                          activeDot={{ r: 6, fill: "#14B8A6" }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                {/* Minhas Turmas */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold">Minhas Turmas</h2>
+                    <Button variant="link" className="text-primary p-0 h-auto text-sm gap-1" asChild>
+                      <Link href="/dashboard/professor/turmas">Ver todas <ChevronRight className="w-4 h-4" /></Link>
+                    </Button>
+                  </div>
 
-                {/* Taxa de Aprovação */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Award className="w-5 h-5 text-success" />
-                      Taxa de Aprovação
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={180}>
-                      <PieChart>
-                        <Pie
-                          data={aprovacaoData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={70}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {aprovacaoData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgb(var(--card))",
-                            border: "1px solid rgb(var(--border))",
-                            borderRadius: "12px",
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="flex flex-col gap-2 mt-2">
-                      {aprovacaoData.map((item) => (
-                        <div key={item.name} className="flex items-center gap-2 text-xs">
-                          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.fill }} />
-                          <span className="truncate">
-                            {item.name}: {item.value}%
-                          </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {(turmas.length > 0 ? turmas : [
+                      { turma_id: 1, turma_nome: "10º Ano A", disciplina_id: 1, disciplina_nome: "Matemática Avançada", total_alunos: 32 },
+                      { turma_id: 2, turma_nome: "9º Ano B", disciplina_id: 2, disciplina_nome: "Geometria Descritiva", total_alunos: 28 },
+                      { turma_id: 3, turma_nome: "12º Ano C", disciplina_id: 3, disciplina_nome: "Cálculo Diferencial", total_alunos: 25 },
+                      { turma_id: 4, turma_nome: "10º Ano B", disciplina_id: 4, disciplina_nome: "Matemática Avançada", total_alunos: 30 },
+                    ] as TurmaProfessor[]).slice(0, 4).map((t, i) => {
+                      const progresso = [85, 40, 100, 15][i] || 50
+                      const nextProva = ["15 de Outubro", "18 de Outubro", null, "22 de Outubro"][i]
+                      return (
+                        <motion.div key={`${t.turma_id}-${t.disciplina_id}`} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.06 }}>
+                          <Card className="hover:shadow-md transition-shadow">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between mb-3">
+                                <div>
+                                  <p className="font-semibold">{t.turma_nome}</p>
+                                  <p className="text-sm text-primary font-medium">{t.disciplina_nome}</p>
+                                </div>
+                                <span className="text-xs text-muted-foreground">{t.total_alunos} Alunos</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                                <Clock className="w-3 h-3" />
+                                <span>Lançamento: {progresso}% concluído</span>
+                              </div>
+                              <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-3">
+                                <div
+                                  className="h-full bg-primary rounded-full transition-all"
+                                  style={{ width: `${progresso}%` }}
+                                />
+                              </div>
+                              {nextProva && (
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>Próxima Prova: <strong>{nextProva}</strong></span>
+                                </div>
+                              )}
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" asChild>
+                                  <Link href="/dashboard/professor/notas">Notas</Link>
+                                </Button>
+                                <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" asChild>
+                                  <Link href="/dashboard/professor/pautas">Ver Pauta</Link>
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Sidebar Direita */}
+                <div className="space-y-4">
+                  {/* Cronograma */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-primary" />Cronograma de Avaliações
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {CRONOGRAMA.map((item, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${item.cor}`}>
+                            <ClipboardList className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium leading-snug">{item.disciplina}</p>
+                            <p className="text-xs text-muted-foreground">{item.tipo} • {item.data}</p>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
                         </div>
                       ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                      <Button variant="link" className="text-primary p-0 h-auto text-xs" asChild>
+                        <Link href="/dashboard/professor/avaliacoes">Acessar Calendário Completo</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
 
-              {/* Distribuição de Notas + Avisos */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Distribuição de Notas */}
-                <Card className="overflow-x-auto">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5 text-accent" />
-                      Distribuição de Notas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={200} minWidth={250}>
-                      <BarChart data={distribuicaoNotas}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="range" className="text-xs" />
-                        <YAxis className="text-xs" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgb(var(--card))",
-                            border: "1px solid rgb(var(--border))",
-                            borderRadius: "12px",
-                          }}
-                        />
-                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                          {distribuicaoNotas.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                  {/* Relatórios Rápidos */}
+                  <Card className="bg-primary text-white border-0">
+                    <CardContent className="p-4 space-y-3">
+                      <h3 className="font-semibold">Relatórios Rápidos</h3>
+                      <p className="text-white/70 text-xs">Gere pautas e boletins em segundos.</p>
+                      <Button size="sm" variant="secondary" className="w-full justify-start gap-2 bg-white/10 hover:bg-white/20 text-white border-0 text-xs" asChild>
+                        <Link href="/dashboard/professor/pautas">
+                          <FileText className="w-3.5 h-3.5" />Exportar Pauta da Turma
+                        </Link>
+                      </Button>
+                      <Button size="sm" variant="secondary" className="w-full justify-start gap-2 bg-white/10 hover:bg-white/20 text-white border-0 text-xs">
+                        <Users className="w-3.5 h-3.5" />Visualizar Médias Finais
+                      </Button>
+                    </CardContent>
+                  </Card>
 
-                {/* Avisos */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between gap-4">
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="w-5 h-5 text-warning" />
-                      Avisos Recentes
-                    </CardTitle>
-                    <Button variant="ghost" size="sm" className="text-xs md:text-sm">
-                      Ver todos
-                    </Button>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {avisosRecentes.map((aviso) => (
-                        <div
-                          key={aviso.id}
-                          className="p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                                aviso.tipo === "importante"
-                                  ? "bg-destructive"
-                                  : aviso.tipo === "evento"
-                                    ? "bg-success"
-                                    : "bg-primary"
-                              }`}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm">{aviso.titulo}</p>
-                              <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{aviso.descricao}</p>
-                              <p className="text-xs text-muted-foreground mt-2">
-                                {new Date(aviso.data).toLocaleDateString("pt-AO")}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Minhas Turmas */}
-              <Card>
-                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-primary" />
-                    Minhas Turmas
-                  </CardTitle>
-                  <Link href="/dashboard/professor/turmas">
-                    <Button variant="ghost" size="sm" className="w-full sm:w-auto">
-                      Ver todas
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </Link>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {PROFESSOR_TURMAS.map((turma) => (
-                      <div
-                        key={turma.id}
-                        className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-accent/5 border border-border hover:shadow-md transition-all cursor-pointer"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-lg font-bold text-primary">{turma.nome}</span>
-                          <Badge variant="outline">{turma.ano}º Ano</Badge>
-                        </div>
-                        <p className="text-sm font-medium">{turma.disciplina}</p>
-                        <p className="text-xs text-muted-foreground">{turma.curso}</p>
-                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-                          <span className="text-sm text-muted-foreground">{turma.totalAlunos} alunos</span>
-                          <div className="flex items-center gap-2">
-                            {turma.notasPendentes && turma.notasPendentes > 0 ? (
-                              <Badge className="bg-warning/20 text-warning border-0 text-xs">
-                                <Clock className="w-3 h-3 mr-1" />
-                                {turma.notasPendentes}
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-success/20 text-success border-0 text-xs">
-                                <CheckCircle2 className="w-3 h-3 mr-1" />
-                                OK
-                              </Badge>
-                            )}
-                          </div>
+                  {/* Ajuda */}
+                  <Card className="border-blue-200 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-500/30">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-2">
+                        <HelpCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-semibold text-blue-800 dark:text-blue-400">Precisa de Ajuda?</p>
+                          <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
+                            Dúvidas sobre o fechamento do trimestre? Consulte o manual do professor ou contate a{" "}
+                            <a href="#" className="underline font-medium">Ver Central de Ajuda</a>
+                          </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </motion.div>
-          </main>
-        </div>
+          )}
+        </main>
       </div>
     </div>
   )

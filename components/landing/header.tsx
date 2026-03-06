@@ -12,9 +12,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50)
-    }
+    const handleScroll = () => setScrolled(window.scrollY > 50)
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
@@ -36,33 +34,16 @@ export function Header() {
             </div>
             <div className="hidden sm:block">
               <h1 className="font-bold text-foreground text-sm md:text-base">Instituto Politécnico</h1>
-              <p className="text-xs text-muted-foreground">do Maiombe</p>
+              <p className="text-xs text-muted-foreground">do Mayombe</p>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
-            <Link href="#sobre" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">
-              Sobre
-            </Link>
-            <Link
-              href="#cursos"
-              className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors"
-            >
-              Cursos
-            </Link>
-            <Link
-              href="#beneficios"
-              className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors"
-            >
-              Benefícios
-            </Link>
-            <Link
-              href="#contato"
-              className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors"
-            >
-              Contato
-            </Link>
+            <Link href="#sobre" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Sobre</Link>
+            <Link href="#cursos" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Cursos</Link>
+            <Link href="#beneficios" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Benefícios</Link>
+            <Link href="#contato" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Contato</Link>
           </nav>
 
           {/* Desktop Buttons */}
@@ -70,8 +51,11 @@ export function Header() {
             <Button variant="ghost" asChild>
               <Link href="/login/aluno">Aluno</Link>
             </Button>
-            <Button asChild>
+            <Button variant="ghost" asChild>
               <Link href="/login/professor">Professor</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/login/admin">Admin</Link>
             </Button>
           </div>
 
@@ -90,24 +74,22 @@ export function Header() {
             className="md:hidden bg-card border-t border-border pb-4"
           >
             <nav className="flex flex-col gap-4 pt-4">
-              <Link href="#sobre" className="text-sm font-medium text-foreground/80 px-4 py-2">
-                Sobre
-              </Link>
-              <Link href="#cursos" className="text-sm font-medium text-foreground/80 px-4 py-2">
-                Cursos
-              </Link>
-              <Link href="#beneficios" className="text-sm font-medium text-foreground/80 px-4 py-2">
-                Benefícios
-              </Link>
-              <Link href="#contato" className="text-sm font-medium text-foreground/80 px-4 py-2">
-                Contato
-              </Link>
+              <Link href="#sobre" className="text-sm font-medium text-foreground/80 px-4 py-2">Sobre</Link>
+              <Link href="#cursos" className="text-sm font-medium text-foreground/80 px-4 py-2">Cursos</Link>
+              <Link href="#beneficios" className="text-sm font-medium text-foreground/80 px-4 py-2">Benefícios</Link>
+              <Link href="#contato" className="text-sm font-medium text-foreground/80 px-4 py-2">Contato</Link>
               <div className="flex flex-col gap-2 px-4 pt-2">
                 <Button variant="outline" asChild className="w-full bg-transparent">
-                  <Link href="/login/aluno">Aluno - Iniciar Sessão</Link>
+                  <Link href="/login/aluno">Aluno — Iniciar Sessão</Link>
+                </Button>
+                <Button variant="outline" asChild className="w-full bg-transparent">
+                  <Link href="/login/professor">Professor — Iniciar Sessão</Link>
+                </Button>
+                <Button variant="outline" asChild className="w-full bg-transparent">
+                  <Link href="/login/encarregado">Encarregado — Iniciar Sessão</Link>
                 </Button>
                 <Button asChild className="w-full">
-                  <Link href="/login/professor">Professor - Iniciar Sessão</Link>
+                  <Link href="/login/admin">Admin — Iniciar Sessão</Link>
                 </Button>
               </div>
             </nav>

@@ -1,151 +1,122 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { useAuth } from "@/lib/auth-context"
-import { DashboardShell } from "@/components/dashboard/shell"
+import { DashboardSidebar } from "@/components/dashboard/sidebar"
+import { DashboardHeader } from "@/components/dashboard/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { ALUNO_DISCIPLINAS, AVISOS, PROPINAS } from "@/lib/mock-data"
-import { BookOpen, Bell, Heart, TrendingUp, TrendingDown, Minus, CreditCard, AlertTriangle, ChevronRight } from "lucide-react"
+import { getNotasAluno, type NotaAluno } from "@/lib/api"
+import { Users, BookOpen, Award, TrendingUp, Loader2 } from "lucide-react"
 import Link from "next/link"
 
 export default function EncarregadoDashboard() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuth()
+  const [notas, setNotas] = useState<NotaAluno[]>([])
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => { if (!isAuthenticated || user?.type !== "encarregado") router.push("/") }, [isAuthenticated, user, router])
+  useEffect(() => {
+    if (!isAuthenticated || user?.type !== "encarregado") {
+      router.push("/login/encarregado")
+    }
+  }, [isAuthenticated, user, router])
+
+  useEffect(() => {
+    if (!user?.alunoId) return
+    getNotasAluno(user.alunoId)
+      .then((res) => setNotas(res.data || []))
+      .finally(() => setLoading(false))
+  }, [user?.alunoId])
+
   if (!isAuthenticated || user?.type !== "encarregado") return null
 
-  const alunoNome = user.alunoNome ?? "Educando"
-  const disciplinas = ALUNO_DISCIPLINAS
-  const aprovadas = disciplinas.filter((d) => d.estado === "Aprovado").length
-  const emCurso  = disciplinas.filter((d) => d.estado === "Em curso").length
-  const mediaGeral = disciplinas.filter((d) => d.media !== null).reduce((acc, d, _, arr) => acc + (d.media ?? 0) / arr.length, 0)
-  const propinasPendentes = PROPINAS.filter((p) => p.alunoId === "ALU001" && (p.estado === "pendente" || p.estado === "atrasado"))
-  const avisos = AVISOS.filter((a) => a.destinatarios === "todos").slice(0, 3)
-
-  const statIcon = (media: number | null) => {
-    if (!media) return <Minus className="w-4 h-4 text-muted-foreground" />
-    if (media >= 14) return <TrendingUp className="w-4 h-4 text-green-600" />
-    if (media >= 10) return <Minus className="w-4 h-4 text-amber-600" />
-    return <TrendingDown className="w-4 h-4 text-destructive" />
-  }
+  const aprovadas = notas.filter((n) => n.media !== null && Number(n.media) >= 10).length
+  const mediaGeral = notas.length > 0
+    ? notas.filter((n) => n.media !== null).reduce((s, n) => s + Number(n.media), 0) /
+      (notas.filter((n) => n.media !== null).length || 1)
+    : 0
 
   return (
-    <DashboardShell>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-        {/* Welcome */}
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-accent/20 via-primary/10 to-background border border-border">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
-              <Heart className="w-5 h-5 text-accent" />
-            </div>
+    <div className="min-h-screen bg-background">
+      <DashboardSidebar />
+      <div className="ml-64">
+        <DashboardHeader />
+        <main className="p-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <div>
-              <p className="font-bold text-lg">Olá, {user.nome?.split(" ")[0]}!</p>
-              <p className="text-sm text-muted-foreground">{user.parentesco} de {alunoNome}</p>
+              <h2 className="text-2xl font-bold">Olá, {user.nome.split(" ")[0]}!</h2>
+              <p className="text-muted-foreground">
+                Acompanhe o desempenho de <strong>{user.alunoNome}</strong>
+              </p>
             </div>
-          </div>
-          <p className="text-sm text-muted-foreground">Acompanhe o desempenho escolar do seu educando em tempo real.</p>
-        </div>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: "Disciplinas",   v: disciplinas.length,             cls: "bg-primary/10 text-primary",         icon: BookOpen },
-            { label: "Aprovadas",     v: aprovadas,                       cls: "bg-green-500/10 text-green-600",    icon: TrendingUp },
-            { label: "Em Curso",      v: emCurso,                         cls: "bg-amber-500/10 text-amber-600",   icon: Minus },
-            { label: "Média Geral",   v: mediaGeral > 0 ? mediaGeral.toFixed(1) : "—", cls: "bg-accent/10 text-accent", icon: TrendingUp },
-          ].map(({ label, v, cls, icon: Icon }) => (
-            <Card key={label}><CardContent className="p-4">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${cls} mb-2`}><Icon className="w-4 h-4" /></div>
-              <p className="text-2xl font-bold">{v}</p>
-              <p className="text-xs text-muted-foreground">{label}</p>
-            </CardContent></Card>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Notas Resumo */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base flex items-center gap-2"><BookOpen className="w-4 h-4 text-primary" />Notas Recentes</CardTitle>
-              <Link href="/dashboard/encarregado/notas"><Button size="sm" variant="ghost" className="gap-1 text-xs">Ver todas<ChevronRight className="w-3 h-3" /></Button></Link>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {disciplinas.slice(0, 4).map((d) => (
-                <div key={d.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-2">
-                    {statIcon(d.media)}
-                    <div>
-                      <p className="text-sm font-medium">{d.nome}</p>
-                      <p className="text-xs text-muted-foreground">{d.trimestre}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    {d.media !== null
-                      ? <p className={`font-bold ${d.media >= 10 ? "text-green-600" : "text-destructive"}`}>{d.media.toFixed(1)}</p>
-                      : <Badge variant="outline" className="text-xs">Em curso</Badge>
-                    }
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Propinas + Avisos */}
-          <div className="space-y-4">
-            {/* Propinas */}
-            <Card className={propinasPendentes.length > 0 ? "border-amber-500/40" : ""}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-primary" />Propinas
-                  {propinasPendentes.length > 0 && <Badge className="bg-amber-500/15 text-amber-600 border-0 text-xs ml-auto">{propinasPendentes.length} pendente(s)</Badge>}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {propinasPendentes.length > 0 ? (
-                  <div className="space-y-2">
-                    {propinasPendentes.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between p-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                          <span className="text-sm">{p.mes} 2025</span>
+            {loading ? (
+              <div className="flex items-center justify-center h-48">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { icon: BookOpen, label: "Disciplinas", value: notas.length, color: "primary" },
+                    { icon: Award,    label: "Aprovadas",   value: aprovadas, color: "success" },
+                    { icon: TrendingUp, label: "Média Geral", value: mediaGeral > 0 ? mediaGeral.toFixed(1) : "—", color: "accent" },
+                    { icon: Users,    label: "Reprovadas",  value: notas.length - aprovadas, color: "destructive" },
+                  ].map(({ icon: Icon, label, value, color }) => (
+                    <Card key={label}>
+                      <CardContent className="p-4 flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl bg-${color}/10 flex items-center justify-center`}>
+                          <Icon className={`w-5 h-5 text-${color}`} />
                         </div>
-                        <Badge className={`${p.estado === "atrasado" ? "bg-destructive/15 text-destructive" : "bg-amber-500/15 text-amber-600"} border-0 capitalize text-xs`}>{p.estado}</Badge>
-                      </div>
-                    ))}
-                    <p className="text-xs text-muted-foreground pt-1">Contacte a secretaria para regularizar os pagamentos.</p>
-                  </div>
-                ) : (
-                  <div className="text-center py-3 text-sm text-green-600">
-                    <TrendingUp className="w-8 h-8 mx-auto mb-1 opacity-50" />
-                    Propinas em dia!
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                        <div>
+                          <p className="text-sm text-muted-foreground">{label}</p>
+                          <p className="text-2xl font-bold">{value}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
 
-            {/* Avisos */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base flex items-center gap-2"><Bell className="w-4 h-4 text-primary" />Avisos</CardTitle>
-                <Link href="/dashboard/encarregado/avisos"><Button size="sm" variant="ghost" className="gap-1 text-xs">Ver todos<ChevronRight className="w-3 h-3" /></Button></Link>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {avisos.map((a) => (
-                  <div key={a.id} className="p-2 rounded-lg border border-border">
-                    <p className="text-sm font-medium">{a.titulo}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{a.descricao}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </motion.div>
-    </DashboardShell>
+                {notas.length > 0 ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Últimas Notas de {user.alunoNome}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {notas.slice(0, 5).map((n) => (
+                          <div key={n.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                            <div>
+                              <p className="font-medium">{n.disciplina_nome}</p>
+                              <p className="text-xs text-muted-foreground">{n.trimestre_nome}</p>
+                            </div>
+                            <span className={`text-lg font-bold ${n.media !== null && Number(n.media) >= 10 ? "text-success" : "text-destructive"}`}>
+                              {n.media !== null ? Number(n.media).toFixed(1) : "—"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <Link href="/dashboard/encarregado/notas" className="block mt-4 text-sm text-primary hover:underline text-center">
+                        Ver todas as notas →
+                      </Link>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="py-12">
+                    <CardContent className="text-center">
+                      <BookOpen className="w-16 h-16 mx-auto text-muted-foreground/40 mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Sem notas aprovadas</h3>
+                      <p className="text-muted-foreground">As notas do seu educando aparecerão aqui após validação.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </motion.div>
+        </main>
+      </div>
+    </div>
   )
 }

@@ -9,48 +9,59 @@ import { DashboardHeader } from "@/components/dashboard/header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { CURSOS } from "@/lib/mock-data"
-import { Users, Search, Plus, GraduationCap, Clock, School } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { getTurmasProfessor } from "@/lib/api"
+import {
+  Search, Filter, Plus, ChevronLeft, ChevronRight,
+  GraduationCap, Users, BookOpen, Download, Loader2,
+  HelpCircle, Link as LinkIcon
+} from "lucide-react"
 
-// Mock turmas data
-const TURMAS = [
-  { id: "TUR001", nome: "IG-1A", cursoId: "CUR001", ano: 1, turno: "Manhã", totalAlunos: 35, sala: "A101" },
-  { id: "TUR002", nome: "IG-1B", cursoId: "CUR001", ano: 1, turno: "Tarde", totalAlunos: 32, sala: "A102" },
-  { id: "TUR003", nome: "IG-2A", cursoId: "CUR001", ano: 2, turno: "Manhã", totalAlunos: 30, sala: "B201" },
-  { id: "TUR004", nome: "IG-3A", cursoId: "CUR001", ano: 3, turno: "Manhã", totalAlunos: 28, sala: "C301" },
-  { id: "TUR005", nome: "EI-1A", cursoId: "CUR002", ano: 1, turno: "Manhã", totalAlunos: 34, sala: "A103" },
-  { id: "TUR006", nome: "EI-2A", cursoId: "CUR002", ano: 2, turno: "Tarde", totalAlunos: 31, sala: "B202" },
-  { id: "TUR007", nome: "CG-1A", cursoId: "CUR003", ano: 1, turno: "Manhã", totalAlunos: 40, sala: "D101" },
-  { id: "TUR008", nome: "CG-2A", cursoId: "CUR003", ano: 2, turno: "Manhã", totalAlunos: 38, sala: "D201" },
-  { id: "TUR009", nome: "ENF-1A", cursoId: "CUR004", ano: 1, turno: "Manhã", totalAlunos: 30, sala: "E101" },
-  { id: "TUR010", nome: "ENF-2A", cursoId: "CUR004", ano: 2, turno: "Tarde", totalAlunos: 28, sala: "E201" },
+interface Turma {
+  id: number
+  nome: string
+  ano: number
+  nivel: string
+  periodo: string
+  total_alunos: number
+  disciplinas: string[]
+  extra_disciplinas: number
+}
+
+const PAGE_SIZE = 5
+
+const DEMO_TURMAS: Turma[] = [
+  { id: 1, nome: "CONT-10A", ano: 2024, nivel: "10º Ano - Contabilidade", periodo: "Matutino", total_alunos: 28, disciplinas: ["Matemática", "Português", "Contabilidade"], extra_disciplinas: 6 },
+  { id: 2, nome: "CONT-10B", ano: 2024, nivel: "10º Ano - Contabilidade", periodo: "Vespertino", total_alunos: 25, disciplinas: ["Matemática", "Física", "Economia"], extra_disciplinas: 5 },
+  { id: 3, nome: "CONT-11A", ano: 2024, nivel: "11º Ano - Contabilidade", periodo: "Matutino", total_alunos: 30, disciplinas: ["Artes", "Ed. Física", "Inglês"], extra_disciplinas: 4 },
+  { id: 4, nome: "CONT-11B", ano: 2024, nivel: "11º Ano - Contabilidade", periodo: "Matutino", total_alunos: 32, disciplinas: ["Sociologia", "Filosofia", "Redação"], extra_disciplinas: 3 },
+  { id: 5, nome: "CONT-12A", ano: 2024, nivel: "12º Ano - Contabilidade", periodo: "Vespertino", total_alunos: 22, disciplinas: ["História", "Geografia", "Ciências"], extra_disciplinas: 2 },
+  { id: 6, nome: "IG-10A", ano: 2024, nivel: "10º Ano - Inf. de Gestão", periodo: "Matutino", total_alunos: 26, disciplinas: ["Informática", "Matemática", "Redes"], extra_disciplinas: 4 },
+  { id: 7, nome: "IG-10B", ano: 2024, nivel: "10º Ano - Inf. de Gestão", periodo: "Vespertino", total_alunos: 24, disciplinas: ["Programação", "BD", "Sistemas"], extra_disciplinas: 3 },
 ]
 
 export default function AdminTurmasPage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuth()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCurso, setSelectedCurso] = useState("all")
+  const [turmas, setTurmas] = useState<Turma[]>(DEMO_TURMAS)
+  const [loading, setLoading] = useState(false)
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
-    if (!isAuthenticated || user?.type !== "admin") {
-      router.push("/")
-    }
+    if (!isAuthenticated || user?.type !== "admin") router.push("/")
   }, [isAuthenticated, user, router])
 
-  if (!isAuthenticated || user?.type !== "admin") {
-    return null
-  }
+  if (!isAuthenticated || user?.type !== "admin") return null
 
-  const filteredTurmas = TURMAS.filter((turma) => {
-    const matchesSearch = turma.nome.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCurso = selectedCurso === "all" || turma.cursoId === selectedCurso
-    return matchesSearch && matchesCurso
-  })
+  const filtradas = turmas.filter((t) =>
+    t.nome.toLowerCase().includes(search.toLowerCase()) ||
+    t.nivel.toLowerCase().includes(search.toLowerCase())
+  )
+  const totalPages = Math.ceil(filtradas.length / PAGE_SIZE)
+  const paginadas = filtradas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const totalAlunos = TURMAS.reduce((acc, t) => acc + t.totalAlunos, 0)
+  const totalAlunos = turmas.reduce((s, t) => s + t.total_alunos, 0)
+  const totalDisciplinas = new Set(turmas.flatMap((t) => t.disciplinas)).size
 
   return (
     <div className="min-h-screen bg-background">
@@ -60,138 +71,191 @@ export default function AdminTurmasPage() {
         <main className="p-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2">
-                  <Users className="w-7 h-7 text-primary" />
-                  Gestão de Turmas
-                </h1>
-                <p className="text-muted-foreground">Gerir turmas e alocação de alunos</p>
+                <p className="text-sm text-muted-foreground mb-1">Gestão Académica &rsaquo; <span className="text-primary">Turmas</span></p>
+                <h1 className="text-3xl font-bold">Gestão de Turmas</h1>
+                <p className="text-muted-foreground mt-1">Gerencie a estrutura das salas, anos letivos e suas respectivas disciplinas.</p>
               </div>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Nova Turma
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" className="gap-2">
+                  <Filter className="w-4 h-4" />Filtrar
+                </Button>
+                <Button className="gap-2 bg-primary hover:bg-primary/90">
+                  <Plus className="w-4 h-4" />Nova Turma
+                </Button>
+              </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Users className="w-5 h-5 text-primary" />
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <GraduationCap className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{TURMAS.length}</p>
-                    <p className="text-xs text-muted-foreground">Total Turmas</p>
+                    <p className="text-sm text-muted-foreground">Total de Turmas</p>
+                    <p className="text-2xl font-bold">{turmas.length}</p>
+                    <p className="text-xs text-green-600 mt-0.5">+2 criadas este mês</p>
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
-                    <GraduationCap className="w-5 h-5 text-secondary" />
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
+                    <Users className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
+                    <p className="text-sm text-muted-foreground">Alunos Activos</p>
                     <p className="text-2xl font-bold">{totalAlunos}</p>
-                    <p className="text-xs text-muted-foreground">Total Alunos</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">96.5% de ocupação</p>
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                    <Clock className="w-5 h-5 text-accent" />
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-500/20 flex items-center justify-center">
+                    <BookOpen className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{TURMAS.filter((t) => t.turno === "Manhã").length}</p>
-                    <p className="text-xs text-muted-foreground">Turno Manhã</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
-                    <School className="w-5 h-5 text-warning" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{TURMAS.filter((t) => t.turno === "Tarde").length}</p>
-                    <p className="text-xs text-muted-foreground">Turno Tarde</p>
+                    <p className="text-sm text-muted-foreground">Disciplinas Vinculadas</p>
+                    <p className="text-2xl font-bold">55</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Média de 8 por turma</p>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Filters */}
+            {/* Pesquisa + Tabela */}
             <Card>
-              <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Pesquisar turma..."
-                      className="pl-9"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+              <CardContent className="p-0">
+                <div className="p-4 border-b border-border">
+                  <div className="flex items-center justify-between">
+                    <div className="relative w-80">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Pesquisar por nome da turma ou ano..."
+                        value={search}
+                        onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                        className="pl-10"
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Exibindo {paginadas.length} de {filtradas.length} turmas</p>
                   </div>
-                  <Select value={selectedCurso} onValueChange={setSelectedCurso}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Curso" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os Cursos</SelectItem>
-                      {CURSOS.map((curso) => (
-                        <SelectItem key={curso.id} value={curso.id}>
-                          {curso.sigla}
-                        </SelectItem>
+                </div>
+
+                {loading ? (
+                  <div className="flex items-center justify-center h-48">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        {["Nome da Turma", "Ano / Nível", "Período", "Alunos", "Disciplinas", "Ações"].map((h) => (
+                          <th key={h} className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wide px-6 py-3">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginadas.map((turma, i) => (
+                        <motion.tr
+                          key={turma.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: i * 0.04 }}
+                          className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                                {turma.nome.split("-")[1]?.charAt(0) || turma.ano.toString().slice(-2)}
+                              </div>
+                              <span className="font-medium text-sm">{turma.nome}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-medium">{turma.ano}</p>
+                            <p className="text-xs text-muted-foreground">{turma.nivel}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm px-2.5 py-1 rounded-md bg-muted text-foreground">
+                              {turma.periodo}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1.5 text-sm">
+                              <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                              {turma.total_alunos}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {turma.disciplinas.map((d) => (
+                                <span key={d} className="text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground">{d}</span>
+                              ))}
+                              {turma.extra_disciplinas > 0 && (
+                                <span className="text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground">+{turma.extra_disciplinas} mais</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                              •••
+                            </Button>
+                          </td>
+                        </motion.tr>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </tbody>
+                  </table>
+                )}
+
+                {/* Paginação */}
+                <div className="flex items-center justify-between px-6 py-3 border-t border-border">
+                  <p className="text-sm text-muted-foreground">
+                    Mostrando {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtradas.length)} de {filtradas.length} entradas
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Anterior</Button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                      <Button key={p} variant={page === p ? "default" : "outline"} size="icon" className="w-8 h-8 text-sm" onClick={() => setPage(p)}>
+                        {p}
+                      </Button>
+                    ))}
+                    <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Próximo</Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredTurmas.map((turma) => {
-                const curso = CURSOS.find((c) => c.id === turma.cursoId)
-                return (
-                  <Card key={turma.id} className="card-hover">
-                    <CardContent className="p-5">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="text-xl font-bold">{turma.nome}</h3>
-                          <p className="text-sm text-muted-foreground">{curso?.nome}</p>
-                        </div>
-                        <Badge variant="outline">{turma.ano}º Ano</Badge>
-                      </div>
-                      <div className="mt-4 space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Alunos:</span>
-                          <span className="font-medium">{turma.totalAlunos}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Turno:</span>
-                          <Badge
-                            className={
-                              turma.turno === "Manhã"
-                                ? "bg-amber-500/20 text-amber-600 border-0"
-                                : "bg-indigo-500/20 text-indigo-600 border-0"
-                            }
-                          >
-                            {turma.turno}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Sala:</span>
-                          <span className="font-medium">{turma.sala}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+            {/* Ajuda + Importação em Massa */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-[#0F172A] text-white border-0">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold mb-2">Novo no sistema?</h3>
+                  <p className="text-white/70 text-sm mb-4">
+                    Aprenda como estruturar as turmas e vincular professores e disciplinas de forma automatizada.
+                  </p>
+                  <Button size="sm" className="bg-primary hover:bg-primary/90">
+                    Acessar Guia de Ajuda
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                    <LinkIcon className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="font-semibold mb-1">Importação em Massa</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Precisa carregar muitas turmas de uma vez? Use nossa ferramenta de importação via CSV.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Download className="w-4 h-4" />Baixar Modelo Excel
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
           </motion.div>
         </main>

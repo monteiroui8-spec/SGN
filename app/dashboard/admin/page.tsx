@@ -1,56 +1,40 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { useAuth } from "@/lib/auth-context"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { StatCard } from "@/components/ui/stat-card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { getNotasPendentes, type NotaPendente } from "@/lib/api"
 import {
-  ADMIN_STATS,
-  NOTAS_PENDENTES,
-  EVOLUCAO_MATRICULAS,
-  DISTRIBUICAO_CURSOS,
-  DESEMPENHO_DISCIPLINAS,
-} from "@/lib/mock-data"
-import {
-  Users,
-  GraduationCap,
-  School,
-  TrendingUp,
-  Award,
-  UserCog,
-  ClipboardList,
-  Bell,
-  ArrowRight,
-  BookOpen,
-  CheckCircle2,
-  Clock,
-  XCircle,
+  Users, BookOpen, GraduationCap, TrendingUp, Calendar,
+  AlertTriangle, CheckCircle2, Clock, FileText, Loader2,
+  ArrowUpRight, MoreHorizontal, Plus
 } from "lucide-react"
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-} from "recharts"
 import Link from "next/link"
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend
+} from "recharts"
+
+const performanceData = [
+  { mes: "Fev", media: 13.2, frequencia: 89 },
+  { mes: "Mar", media: 13.8, frequencia: 91 },
+  { mes: "Abr", media: 14.1, frequencia: 90 },
+  { mes: "Mai", media: 14.5, frequencia: 92 },
+  { mes: "Jun", media: 14.2, frequencia: 94 },
+  { mes: "Jul", media: 14.8, frequencia: 93 },
+]
 
 export default function AdminDashboard() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuth()
+  const [notas, setNotas] = useState<NotaPendente[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!isAuthenticated || user?.type !== "admin") {
@@ -58,364 +42,267 @@ export default function AdminDashboard() {
     }
   }, [isAuthenticated, user, router])
 
-  if (!isAuthenticated || user?.type !== "admin") {
-    return null
-  }
+  useEffect(() => {
+    getNotasPendentes()
+      .then((res) => setNotas(res.data || []))
+      .finally(() => setLoading(false))
+  }, [])
 
-  const COLORS = ["#14B8A6", "#10B981", "#06B6D4", "#22C55E", "#F97316"]
+  if (!isAuthenticated || user?.type !== "admin") return null
 
-  const notasPendentes = NOTAS_PENDENTES.filter((n) => n.estado === "Pendente")
-  const notasAprovadas = NOTAS_PENDENTES.filter((n) => n.estado === "Aprovado")
-  const notasRejeitadas = NOTAS_PENDENTES.filter((n) => n.estado === "Rejeitado")
+  const pendentes  = notas.filter((n) => n.estado === "Pendente")
+  const aprovadas  = notas.filter((n) => n.estado === "Aprovado")
 
-  const alunosPorCurso = DISTRIBUICAO_CURSOS.filter((c) => c.sigla === "CONT" || c.sigla === "IG")
+  const atividades = [
+    { icon: FileText, text: "Relatório Trimestral gerado com sucesso.", tempo: "há 2 horas", cor: "text-primary bg-primary/10" },
+    { icon: AlertTriangle, text: "Turma 10B está sem professor de Física.", tempo: "há 5 horas", cor: "text-warning bg-warning/10" },
+    { icon: Users, text: "15 novos alunos matriculados hoje.", tempo: "há 8 horas", cor: "text-blue-500 bg-blue-500/10" },
+    { icon: Calendar, text: "Calendário de exames finais actualizado.", tempo: "há 1 dia", cor: "text-success bg-success/10" },
+  ]
 
   return (
     <div className="min-h-screen bg-background">
-      {/* CHANGE: Improved layout with flex and responsive margin */}
-      <div className="flex flex-col lg:flex-row min-h-screen">
-        <DashboardSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <DashboardHeader />
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+      <DashboardSidebar />
+      <div className="ml-64 transition-all duration-300">
+        <DashboardHeader />
+        <main className="p-6">
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              {/* Stats Cards - Responsive Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                  title="Total Alunos"
-                  value={ADMIN_STATS.totalAlunos}
-                  subtitle={`${ADMIN_STATS.alunosActivos} activos`}
-                  icon={Users}
-                  trend={{ value: 4.8, label: "este mês" }}
-                  variant="primary"
-                />
-                <StatCard
-                  title="Professores"
-                  value={ADMIN_STATS.totalProfessores}
-                  subtitle={`${ADMIN_STATS.professorActivos} activos`}
-                  icon={UserCog}
-                  variant="secondary"
-                />
-                <StatCard
-                  title="Cursos"
-                  value={alunosPorCurso.length}
-                  subtitle={`${ADMIN_STATS.totalTurmas} turmas`}
-                  icon={School}
-                  variant="accent"
-                />
-                <StatCard
-                  title="Taxa Aprovação"
-                  value={`${ADMIN_STATS.taxaAprovacao}%`}
-                  icon={Award}
-                  trend={{ value: 2.3, label: "vs ano anterior" }}
-                  variant="success"
-                />
+              {/* Breadcrumb + Título */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Início &rsaquo; Dashboard Administrativo</p>
+                  <h1 className="text-3xl font-bold text-foreground">Visão Geral</h1>
+                  <p className="text-muted-foreground mt-1">
+                    Bem-vindo de volta, {user.nome.split(" ")[0]}. Aqui está o que está acontecendo na escola hoje.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" className="gap-2">
+                    <Calendar className="w-4 h-4" />Período Letivo
+                  </Button>
+                  <Button className="gap-2 bg-primary hover:bg-primary/90">
+                    <TrendingUp className="w-4 h-4" />Exportar Relatórios
+                  </Button>
+                </div>
               </div>
 
-              {/* Quick Actions & Pending Notes */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Pending Validations */}
-                <Card className="lg:col-span-2">
-                  <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <CardTitle className="flex items-center gap-2">
-                      <ClipboardList className="w-5 h-5 text-warning" />
-                      Notas Pendentes de Validação
-                    </CardTitle>
-                    <Link href="/dashboard/admin/validacao-notas">
-                      <Button variant="ghost" size="sm" className="w-full sm:w-auto">
-                        Ver todas
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Button>
-                    </Link>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3 overflow-x-auto">
-                      {notasPendentes.slice(0, 4).map((nota) => (
-                        <motion.div
-                          key={nota.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors gap-4"
-                        >
-                          <div className="flex items-center gap-4 w-full sm:flex-1">
-                            <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
-                              <Clock className="w-5 h-5 text-warning" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium truncate">{nota.alunoNome}</p>
-                              <p className="text-sm text-muted-foreground truncate">
-                                {nota.disciplinaNome} - {nota.turma}
-                              </p>
-                            </div>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  {
+                    icon: Users,
+                    label: "Total de Alunos",
+                    value: "1.240",
+                    badge: "+4% este mês",
+                    badgeColor: "bg-green-100 text-green-700",
+                    iconBg: "bg-green-100",
+                    iconColor: "text-green-600",
+                  },
+                  {
+                    icon: GraduationCap,
+                    label: "Turmas Ativas",
+                    value: "10",
+                    badge: "Estável",
+                    badgeColor: "bg-blue-100 text-blue-700",
+                    iconBg: "bg-blue-100",
+                    iconColor: "text-blue-600",
+                  },
+                  {
+                    icon: BookOpen,
+                    label: "Disciplinas",
+                    value: "55",
+                    badge: "+2 novas",
+                    badgeColor: "bg-purple-100 text-purple-700",
+                    iconBg: "bg-purple-100",
+                    iconColor: "text-purple-600",
+                  },
+                  {
+                    icon: TrendingUp,
+                    label: "Média Geral",
+                    value: "14,2",
+                    badge: "+1.2 pt",
+                    badgeColor: "bg-orange-100 text-orange-700",
+                    iconBg: "bg-orange-100",
+                    iconColor: "text-orange-600",
+                  },
+                ].map((stat, i) => (
+                  <motion.div
+                    key={stat.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <Card>
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className={`w-10 h-10 rounded-xl ${stat.iconBg} flex items-center justify-center`}>
+                            <stat.icon className={`w-5 h-5 ${stat.iconColor}`} />
                           </div>
-                          <div className="flex items-center gap-3 w-full sm:w-auto">
-                            <Badge variant="outline" className="status-pending">
-                              Pendente
-                            </Badge>
-                            <div className="flex gap-1">
-                              <Button size="icon" variant="ghost" className="h-8 w-8 text-success hover:bg-success/10">
-                                <CheckCircle2 className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                      {notasPendentes.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">Nenhuma nota pendente de validação</div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Quick Stats */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="w-5 h-5 text-primary" />
-                      Resumo de Notas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-warning/10">
-                      <div className="flex items-center gap-3">
-                        <Clock className="w-5 h-5 text-warning flex-shrink-0" />
-                        <span className="text-sm font-medium">Pendentes</span>
-                      </div>
-                      <span className="text-2xl font-bold text-warning">{notasPendentes.length}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-success/10">
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0" />
-                        <span className="text-sm font-medium">Aprovadas</span>
-                      </div>
-                      <span className="text-2xl font-bold text-success">{notasAprovadas.length}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-destructive/10">
-                      <div className="flex items-center gap-3">
-                        <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />
-                        <span className="text-sm font-medium">Rejeitadas</span>
-                      </div>
-                      <span className="text-2xl font-bold text-destructive">{notasRejeitadas.length}</span>
-                    </div>
-
-                    <div className="pt-4 border-t border-border">
-                      <p className="text-sm text-muted-foreground mb-2">Total de notas lançadas</p>
-                      <p className="text-3xl font-bold">{ADMIN_STATS.notasLancadas.toLocaleString()}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Charts Row - Responsive */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Evolução de Matrículas */}
-                <Card className="lg:col-span-2 overflow-x-auto">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-primary" />
-                      Evolução de Matrículas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={280}>
-                      <AreaChart data={EVOLUCAO_MATRICULAS}>
-                        <defs>
-                          <linearGradient id="colorAlunos" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#14B8A6" stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="colorProfs" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="ano" className="text-xs" />
-                        <YAxis className="text-xs" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgb(var(--card))",
-                            border: "1px solid rgb(var(--border))",
-                            borderRadius: "12px",
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="alunos"
-                          name="Alunos"
-                          stroke="#14B8A6"
-                          strokeWidth={3}
-                          fillOpacity={1}
-                          fill="url(#colorAlunos)"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="professores"
-                          name="Professores"
-                          stroke="#10B981"
-                          strokeWidth={2}
-                          fillOpacity={1}
-                          fill="url(#colorProfs)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-
-                {/* Distribuição por Curso */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <GraduationCap className="w-5 h-5 text-secondary" />
-                      Alunos por Curso
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={180}>
-                      <PieChart>
-                        <Pie
-                          data={alunosPorCurso}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={70}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {alunosPorCurso.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgb(var(--card))",
-                            border: "1px solid rgb(var(--border))",
-                            borderRadius: "12px",
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-                      {alunosPorCurso.map((item, index) => (
-                        <div key={item.nome} className="flex items-center gap-2 text-xs">
-                          <div
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: COLORS[index] }}
-                          />
-                          <span className="truncate">
-                            {item.sigla}: {item.value}
+                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${stat.badgeColor}`}>
+                            ↗ {stat.badge}
                           </span>
                         </div>
-                      ))}
+                        <p className="text-sm text-muted-foreground">{stat.label}</p>
+                        <p className="text-3xl font-bold text-foreground mt-1">{stat.value}</p>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Gráfico + Atividades */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="lg:col-span-2">
+                  <CardHeader className="flex flex-row items-start justify-between pb-2">
+                    <div>
+                      <CardTitle className="text-base font-semibold">Desempenho Académico Global</CardTitle>
+                      <CardDescription>Média e frequência dos alunos nos últimos 6 meses</CardDescription>
                     </div>
+                    <Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <LineChart data={performanceData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{
+                            background: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                            fontSize: "12px",
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: "12px" }} />
+                        <Line
+                          type="monotone"
+                          dataKey="media"
+                          stroke="hsl(var(--primary))"
+                          strokeWidth={2.5}
+                          dot={false}
+                          name="Média Escolar"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="frequencia"
+                          stroke="hsl(var(--foreground))"
+                          strokeWidth={2}
+                          dot={false}
+                          name="Frequência (%)"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Atividades Recentes */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold">Atividades Recentes</CardTitle>
+                    <CardDescription>Eventos importantes do sistema</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {atividades.map((a, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${a.cor}`}>
+                          <a.icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground leading-snug">{a.text}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{a.tempo}</p>
+                        </div>
+                      </div>
+                    ))}
+                    <Button variant="link" className="text-primary p-0 h-auto text-sm" asChild>
+                      <Link href="/dashboard/admin/auditoria">Ver todo o histórico →</Link>
+                    </Button>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Desempenho por Disciplina */}
-              <Card className="overflow-x-auto">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-accent" />
-                    Desempenho por Disciplina
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300} minWidth={250}>
-                    <BarChart data={DESEMPENHO_DISCIPLINAS} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
-                      <XAxis type="number" domain={[0, 20]} className="text-xs" />
-                      <YAxis dataKey="disciplina" type="category" width={80} className="text-xs" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "rgb(var(--card))",
-                          border: "1px solid rgb(var(--border))",
-                          borderRadius: "12px",
-                        }}
-                      />
-                      <Bar dataKey="media" name="Média" fill="#14B8A6" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              {/* Gestão Rápida + Status do Período */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold">Gestão Rápida</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: "Alunos", icon: Users, href: "/dashboard/admin/alunos" },
+                        { label: "Turmas", icon: GraduationCap, href: "/dashboard/admin/turmas" },
+                        { label: "Disciplinas", icon: BookOpen, href: "/dashboard/admin/disciplinas" },
+                        { label: "Relatórios", icon: FileText, href: "/dashboard/admin/relatorios" },
+                      ].map((item) => (
+                        <Link key={item.label} href={item.href}>
+                          <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer">
+                            <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                              <item.icon className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                            <span className="text-sm font-medium">{item.label}</span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Quick Access Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Link href="/dashboard/admin/alunos">
-                  <Card className="card-hover cursor-pointer group h-full">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
-                          <Users className="w-6 h-6 text-primary" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold truncate">Gerir Alunos</p>
-                          <p className="text-sm text-muted-foreground">{ADMIN_STATS.totalAlunos} registados</p>
-                        </div>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold">Status do Período</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1.5">
+                        <span className="text-muted-foreground">Lançamento de Notas (2º Trim)</span>
+                        <span className="text-primary font-semibold">82%</span>
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-
-                <Link href="/dashboard/admin/professores">
-                  <Card className="card-hover cursor-pointer group h-full">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-colors flex-shrink-0">
-                          <UserCog className="w-6 h-6 text-secondary" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold truncate">Gerir Professores</p>
-                          <p className="text-sm text-muted-foreground">{ADMIN_STATS.totalProfessores} registados</p>
-                        </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary rounded-full" style={{ width: "82%" }} />
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-
-                <Link href="/dashboard/admin/cursos">
-                  <Card className="card-hover cursor-pointer group h-full">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors flex-shrink-0">
-                          <School className="w-6 h-6 text-accent" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold truncate">Gerir Cursos</p>
-                          <p className="text-sm text-muted-foreground">{alunosPorCurso.length} cursos</p>
-                        </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1.5">
+                        <span className="text-muted-foreground">Frequência Docente</span>
+                        <span className="text-blue-600 font-semibold">96%</span>
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-
-                <Link href="/dashboard/admin/relatorios">
-                  <Card className="card-hover cursor-pointer group h-full">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center group-hover:bg-success/20 transition-colors flex-shrink-0">
-                          <TrendingUp className="w-6 h-6 text-success" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold truncate">Relatórios</p>
-                          <p className="text-sm text-muted-foreground">Análises detalhadas</p>
-                        </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: "96%" }} />
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                    </div>
+                    {pendentes.length > 0 && (
+                      <div className="mt-4 p-3 rounded-xl bg-warning/10 border border-warning/20 flex items-start gap-2">
+                        <Clock className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-warning-foreground">
+                          {pendentes.length} notas aguardam validação.{" "}
+                          <Link href="/dashboard/admin/validacao-notas" className="underline font-medium">Ver agora</Link>
+                        </p>
+                      </div>
+                    )}
+                    <div className="p-3 rounded-xl bg-yellow-50 border border-yellow-200 flex items-start gap-2 dark:bg-yellow-500/10 dark:border-yellow-500/20">
+                      <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-yellow-800 dark:text-yellow-400">
+                        Atenção: O conselho de classe está agendado para a próxima sexta-feira às 14:00.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </motion.div>
-          </main>
-        </div>
+          )}
+        </main>
       </div>
+
+      {/* FAB */}
+      <button className="fixed bottom-6 right-6 w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors z-50">
+        <Plus className="w-6 h-6 text-white" />
+      </button>
     </div>
   )
 }

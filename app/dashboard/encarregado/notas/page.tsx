@@ -4,149 +4,134 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { useAuth } from "@/lib/auth-context"
-import { DashboardShell } from "@/components/dashboard/shell"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { DashboardSidebar } from "@/components/dashboard/sidebar"
+import { DashboardHeader } from "@/components/dashboard/header"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ALUNO_DISCIPLINAS, HISTORICO_NOTAS, TRIMESTRES } from "@/lib/mock-data"
-import { BookOpen, TrendingUp, TrendingDown, Minus, Award } from "lucide-react"
-
-const notaCor = (n: number | null) => {
-  if (!n) return "text-muted-foreground"
-  if (n >= 14) return "text-green-600"
-  if (n >= 10) return "text-amber-600"
-  return "text-destructive"
-}
-
-const estadoBadge = (estado: string) => {
-  const map: Record<string, string> = {
-    Aprovado: "bg-green-500/15 text-green-600",
-    Reprovado: "bg-destructive/15 text-destructive",
-    "Em curso": "bg-amber-500/15 text-amber-600",
-  }
-  return <Badge className={`${map[estado] ?? "bg-muted"} border-0`}>{estado}</Badge>
-}
+import { getNotasAluno, getTrimestres, type NotaAluno, type Trimestre } from "@/lib/api"
+import { BookOpen, CheckCircle2, Clock, Loader2, AlertCircle } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function EncarregadoNotasPage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuth()
-  const [trimestre, setTrimestre] = useState("all")
+  const { toast } = useToast()
+  const [notas, setNotas] = useState<NotaAluno[]>([])
+  const [trimestres, setTrimestres] = useState<Trimestre[]>([])
+  const [selectedTrId, setSelectedTrId] = useState<string>("all")
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => { if (!isAuthenticated || user?.type !== "encarregado") router.push("/") }, [isAuthenticated, user, router])
+  useEffect(() => {
+    if (!isAuthenticated || user?.type !== "encarregado") {
+      router.push("/login/encarregado")
+    }
+  }, [isAuthenticated, user, router])
+
+  useEffect(() => {
+    if (!user?.alunoId) return
+    getTrimestres().then((res) => setTrimestres(res.data || []))
+  }, [user?.alunoId])
+
+  useEffect(() => {
+    if (!user?.alunoId) return
+    setLoading(true)
+    const trId = selectedTrId !== "all" ? Number(selectedTrId) : undefined
+    getNotasAluno(user.alunoId, trId)
+      .then((res) => setNotas(res.data || []))
+      .catch(() => toast({ title: "Erro ao carregar notas", variant: "destructive" }))
+      .finally(() => setLoading(false))
+  }, [user?.alunoId, selectedTrId])
+
   if (!isAuthenticated || user?.type !== "encarregado") return null
 
-  const disciplinas = trimestre === "all" ? ALUNO_DISCIPLINAS : ALUNO_DISCIPLINAS.filter((d) => d.trimestre.startsWith(trimestre))
-  const aprovadas = disciplinas.filter((d) => d.estado === "Aprovado")
-  const emCurso = disciplinas.filter((d) => d.estado === "Em curso")
-  const mediaGeral = aprovadas.length > 0 ? aprovadas.reduce((acc, d) => acc + (d.media ?? 0), 0) / aprovadas.length : 0
-
   return (
-    <DashboardShell>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2"><BookOpen className="w-6 h-6 text-primary" />Notas de {user.alunoNome}</h1>
-            <p className="text-sm text-muted-foreground">{user.parentesco} a visualizar o desempenho do seu educando</p>
-          </div>
-          <Select value={trimestre} onValueChange={setTrimestre}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Trimestre" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {TRIMESTRES.map((t) => <SelectItem key={t.id} value={t.nome.charAt(0)}>{t.nome}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: "Disciplinas",  v: disciplinas.length,              icon: BookOpen,    cls: "text-primary bg-primary/10" },
-            { label: "Aprovadas",    v: aprovadas.length,                icon: TrendingUp,  cls: "text-green-600 bg-green-500/10" },
-            { label: "Em Curso",     v: emCurso.length,                  icon: Minus,       cls: "text-amber-600 bg-amber-500/10" },
-            { label: "Média",        v: mediaGeral > 0 ? mediaGeral.toFixed(1) : "—", icon: Award, cls: "text-violet-600 bg-violet-500/10" },
-          ].map(({ label, v, icon: Icon, cls }) => (
-            <Card key={label}><CardContent className="p-4">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${cls} mb-2`}><Icon className="w-4 h-4" /></div>
-              <p className="text-2xl font-bold">{v}</p><p className="text-xs text-muted-foreground">{label}</p>
-            </CardContent></Card>
-          ))}
-        </div>
-
-        <Tabs defaultValue="notas">
-          <TabsList className="grid w-full max-w-xs grid-cols-2">
-            <TabsTrigger value="notas">Notas Actuais</TabsTrigger>
-            <TabsTrigger value="historico">Histórico</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="notas" className="mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {disciplinas.map((d, i) => (
-                <motion.div key={d.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                  className="p-5 rounded-xl border border-border bg-card">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <p className="font-semibold">{d.nome}</p>
-                      <p className="text-xs text-muted-foreground">{d.professor} · {d.trimestre}</p>
-                    </div>
-                    {estadoBadge(d.estado)}
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    {[
-                      { label: "P1",       v: d.notas.p1 },
-                      { label: "P2",       v: d.notas.p2 },
-                      { label: "Trabalho", v: d.notas.trabalho },
-                      { label: "Exame",    v: d.notas.exame },
-                    ].map(({ label, v }) => (
-                      <div key={label} className="p-2 rounded-lg bg-muted/50">
-                        <p className={`text-lg font-bold ${notaCor(v)}`}>{v ?? "—"}</p>
-                        <p className="text-xs text-muted-foreground">{label}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {d.media !== null && (
-                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground font-medium">Média final</span>
-                      <span className={`text-xl font-bold ${notaCor(d.media)}`}>{d.media.toFixed(1)}</span>
-                    </div>
-                  )}
-                </motion.div>
-              ))}
+    <div className="min-h-screen bg-background">
+      <DashboardSidebar />
+      <div className="ml-64">
+        <DashboardHeader />
+        <main className="p-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold">Notas de {user.alunoNome}</h2>
+                <p className="text-muted-foreground">Nº {user.alunoNumero}</p>
+              </div>
+              <Select value={selectedTrId} onValueChange={setSelectedTrId}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Todos os trimestres" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os trimestres</SelectItem>
+                  {trimestres.map((t) => (
+                    <SelectItem key={t.id} value={String(t.id)}>{t.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </TabsContent>
 
-          <TabsContent value="historico" className="mt-4">
-            <div className="space-y-3">
-              {HISTORICO_NOTAS.map((h, i) => (
-                <motion.div key={h.anoLectivo} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-                  className="p-5 rounded-xl border border-border bg-card flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <span className="font-bold text-primary text-sm">{h.ano}º</span>
-                    </div>
-                    <div>
-                      <p className="font-semibold">{h.anoLectivo}</p>
-                      <p className="text-sm text-muted-foreground">{h.aprovadas}/{h.disciplinas} disciplinas aprovadas</p>
-                    </div>
-                  </div>
-                  <div className="text-right flex items-center gap-4">
-                    <div>
-                      <p className={`text-2xl font-bold ${h.mediaAnual ? notaCor(h.mediaAnual) : "text-muted-foreground"}`}>
-                        {h.mediaAnual?.toFixed(1) ?? "—"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Média</p>
-                    </div>
-                    <Badge className={h.estado === "Aprovado" ? "bg-green-500/15 text-green-600 border-0" : h.estado === "Em curso" ? "bg-amber-500/15 text-amber-600 border-0" : "bg-destructive/15 text-destructive border-0"}>
-                      {h.estado}
-                    </Badge>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
-      </motion.div>
-    </DashboardShell>
+            {loading ? (
+              <div className="flex items-center justify-center h-48">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : notas.length === 0 ? (
+              <Card className="py-12">
+                <CardContent className="text-center">
+                  <AlertCircle className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Sem notas aprovadas</h3>
+                  <p className="text-muted-foreground">Não existem notas aprovadas para este período.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {notas.map((n, index) => (
+                  <motion.div key={n.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.07 }}>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                              <BookOpen className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg">{n.disciplina_nome}</CardTitle>
+                              <p className="text-sm text-muted-foreground">{n.professor_nome} · {n.trimestre_nome}</p>
+                            </div>
+                          </div>
+                          {n.media !== null && Number(n.media) >= 10 ? (
+                            <span className="flex items-center gap-1 text-sm text-success bg-success/10 px-3 py-1 rounded-full">
+                              <CheckCircle2 className="w-4 h-4" />Aprovado
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                              <Clock className="w-4 h-4" />Em curso
+                            </span>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-5 gap-4">
+                          {[["1ª Prova", n.p1], ["2ª Prova", n.p2], ["Trabalho", n.trabalho], ["Exame", n.exame]].map(([label, val]) => (
+                            <div key={String(label)} className="text-center p-3 bg-muted/50 rounded-lg">
+                              <p className="text-xs text-muted-foreground mb-1">{label}</p>
+                              <p className="text-xl font-bold">{val !== null ? val : "—"}</p>
+                            </div>
+                          ))}
+                          <div className="text-center p-3 bg-primary/10 rounded-lg">
+                            <p className="text-xs text-primary mb-1">Média</p>
+                            <p className={`text-xl font-bold ${n.media !== null ? (Number(n.media) >= 10 ? "text-success" : "text-destructive") : "text-primary"}`}>
+                              {n.media !== null ? Number(n.media).toFixed(1) : "—"}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </main>
+      </div>
+    </div>
   )
 }

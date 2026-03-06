@@ -1,23 +1,28 @@
 <?php
 class Database {
-    private $host = 'localhost';
-    private $db_name = 'ipm_maiombe';
-    private $user = 'root';
-    private $pass = '';
-    private $conn;
+    private string $host    = 'localhost';
+    private string $db_name = 'sgn_ipm';    // base de dados criada pelo 01_schema.sql
+    private string $user    = 'root';
+    private string $pass    = '';           // alterar se o MySQL tiver senha
+    private ?mysqli $conn   = null;
 
-    public function connect() {
+    public function connect(): mysqli {
         $this->conn = new mysqli($this->host, $this->user, $this->pass, $this->db_name);
-        
+
         if ($this->conn->connect_error) {
-            die('Connection Error: ' . $this->conn->connect_error);
+            http_response_code(500);
+            echo json_encode(['error' => 'Erro de ligação à base de dados: ' . $this->conn->connect_error]);
+            exit();
         }
-        
+
+        $this->conn->set_charset('utf8mb4');
         return $this->conn;
     }
 
-    public function closeConnection() {
-        $this->conn->close();
+    public function closeConnection(): void {
+        if ($this->conn) {
+            $this->conn->close();
+        }
     }
 }
 ?>

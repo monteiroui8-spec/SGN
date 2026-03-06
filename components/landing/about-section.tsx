@@ -1,80 +1,68 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { useInView } from "framer-motion"
-import { useRef } from "react"
-import { Target, Eye, Heart, Lightbulb } from "lucide-react"
-
-const values = [
-  {
-    icon: Target,
-    title: "Missão",
-    description:
-      "Formar profissionais qualificados e competentes, capazes de contribuir para o desenvolvimento socioeconómico de Angola através do ensino técnico de excelência.",
-  },
-  {
-    icon: Eye,
-    title: "Visão",
-    description:
-      "Ser uma instituição de referência no ensino técnico e profissional em Angola, reconhecida pela qualidade dos seus formandos e pela inovação pedagógica.",
-  },
-  {
-    icon: Heart,
-    title: "Valores",
-    description:
-      "Excelência, integridade, respeito pela diversidade, compromisso social e inovação contínua são os pilares que norteiam todas as nossas ações.",
-  },
-  {
-    icon: Lightbulb,
-    title: "Inovação",
-    description:
-      "Utilizamos tecnologias modernas e metodologias pedagógicas inovadoras para garantir uma aprendizagem eficaz e alinhada com as necessidades do mercado.",
-  },
-]
+import { GraduationCap, Target, Eye, Heart } from "lucide-react"
 
 export function AboutSection() {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  const values = [
+    { icon: Target, title: "Missão", desc: "Formar profissionais competentes e éticos, preparados para os desafios do mercado de trabalho angolano e global." },
+    { icon: Eye, title: "Visão", desc: "Ser a instituição politécnica de referência em Angola, reconhecida pela excelência académica e inovação pedagógica." },
+    { icon: Heart, title: "Valores", desc: "Integridade, excelência, responsabilidade social e compromisso com o desenvolvimento da região do Mayombe." },
+  ]
 
   return (
-    <section id="sobre" className="py-24 bg-muted/30" ref={ref}>
+    <section id="sobre" className="py-24 bg-muted/30">
       <div className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
-          <span className="inline-block px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-4">
-            Sobre Nós
-          </span>
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-6 text-balance">
-            Construindo o Futuro de Angola
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-3xl mx-auto text-pretty">
-            Desde a sua fundação, o Instituto Politécnico do Mayombe tem sido um pilar fundamental na formação de jovens
-            angolanos, preparando-os para os desafios do mercado de trabalho com educação técnica de qualidade.
-          </p>
-        </motion.div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {values.map((value, index) => (
-            <motion.div
-              key={value.title}
-              initial={{ opacity: 0, y: 40 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="group"
-            >
-              <div className="bg-card rounded-2xl p-6 h-full border border-border hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 hover:-translate-y-1">
-                <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary group-hover:scale-110 transition-all duration-300">
-                  <value.icon className="w-7 h-7 text-primary group-hover:text-primary-foreground transition-colors" />
+          {/* Texto */}
+          <motion.div
+            initial={{ opacity: 0, x: -40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+          >
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <GraduationCap className="w-4 h-4" />
+              Sobre o IPM
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-6 leading-tight">
+              Formando líderes para o{" "}
+              <span className="text-primary">futuro de Angola</span>
+            </h2>
+            <p className="text-muted-foreground text-lg mb-6 leading-relaxed">
+              O Instituto Politécnico do Mayombe é uma instituição de ensino técnico-profissional
+              localizada em Cabinda, dedicada à formação de quadros qualificados nas áreas de
+              Contabilidade e Informática de Gestão.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              Com um corpo docente experiente e infraestruturas modernas, o IPM oferece um
+              ambiente de aprendizagem que combina teoria e prática, preparando os nossos
+              alunos para os desafios reais do mercado de trabalho.
+            </p>
+          </motion.div>
+
+          {/* Cards de valores */}
+          <div className="space-y-4">
+            {values.map((item, i) => (
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, x: 40 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.15 }}
+                className="flex gap-4 p-5 rounded-2xl bg-background border border-border hover:shadow-md transition-shadow"
+              >
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <item.icon className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-3">{value.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{value.description}</p>
-              </div>
-            </motion.div>
-          ))}
+                <div>
+                  <h3 className="font-semibold mb-1">{item.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

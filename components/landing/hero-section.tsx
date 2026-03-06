@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, BookOpen, Users, Award } from "lucide-react"
@@ -16,26 +17,40 @@ function FloatingShape({ className, delay = 0 }: { className: string; delay?: nu
   )
 }
 
+// Posições fixas — evita hydration mismatch causado por Math.random() no servidor
+const PARTICLES = [
+  { left: 12.4, top: 34.2, duration: 3.4, delay: 0.2 },
+  { left: 87.1, top: 61.8, duration: 4.1, delay: 0.8 },
+  { left: 45.6, top: 22.3, duration: 3.7, delay: 1.1 },
+  { left: 73.2, top: 78.5, duration: 4.4, delay: 0.4 },
+  { left: 28.9, top: 91.0, duration: 3.2, delay: 1.5 },
+  { left: 61.3, top: 14.7, duration: 4.8, delay: 0.6 },
+  { left: 5.8,  top: 47.3, duration: 3.6, delay: 1.9 },
+  { left: 93.4, top: 38.1, duration: 4.2, delay: 0.1 },
+  { left: 38.7, top: 65.4, duration: 3.9, delay: 1.3 },
+  { left: 52.1, top: 83.6, duration: 4.6, delay: 0.9 },
+  { left: 19.5, top: 11.2, duration: 3.3, delay: 1.7 },
+  { left: 79.8, top: 55.9, duration: 4.0, delay: 0.3 },
+  { left: 35.2, top: 29.7, duration: 3.8, delay: 1.0 },
+  { left: 66.7, top: 72.4, duration: 4.3, delay: 0.7 },
+  { left: 8.3,  top: 88.1, duration: 3.5, delay: 1.4 },
+  { left: 48.9, top: 43.6, duration: 4.7, delay: 0.5 },
+  { left: 82.4, top: 19.8, duration: 3.1, delay: 1.8 },
+  { left: 24.6, top: 57.3, duration: 4.5, delay: 0.2 },
+  { left: 57.3, top: 96.1, duration: 3.6, delay: 1.6 },
+  { left: 91.7, top: 32.4, duration: 4.9, delay: 1.2 },
+]
+
 function ParticleField() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...Array(20)].map((_, i) => (
+      {PARTICLES.map((p, i) => (
         <motion.div
           key={i}
           className="absolute w-2 h-2 bg-primary/20 rounded-full"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-          }}
-          animate={{
-            y: [0, -30, 0],
-            opacity: [0.2, 0.5, 0.2],
-          }}
-          transition={{
-            duration: 3 + Math.random() * 2,
-            repeat: Number.POSITIVE_INFINITY,
-            delay: Math.random() * 2,
-          }}
+          style={{ left: `${p.left}%`, top: `${p.top}%` }}
+          animate={{ y: [0, -30, 0], opacity: [0.2, 0.5, 0.2] }}
+          transition={{ duration: p.duration, repeat: Number.POSITIVE_INFINITY, delay: p.delay }}
         />
       ))}
     </div>
@@ -98,8 +113,8 @@ export function HeroSection() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto text-pretty"
           >
-            Excelência no ensino técnico e profissional. Formando os líderes e profissionais do futuro de Angola com
-            tecnologia e inovação.
+            Excelência no ensino técnico e profissional. Formando os líderes e profissionais
+            do futuro de Angola com tecnologia e inovação.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -128,9 +143,9 @@ export function HeroSection() {
             className="grid grid-cols-3 gap-8 mt-16 max-w-2xl mx-auto"
           >
             {[
-              { icon: Users, value: "2.500+", label: "Alunos" },
-              { icon: BookOpen, value: "15", label: "Cursos" },
-              { icon: Award, value: "95%", label: "Aprovação" },
+              { icon: Users, value: "850+", label: "Alunos" },
+              { icon: BookOpen, value: "2", label: "Cursos" },
+              { icon: Award, value: "95%", label: "Empregabilidade" },
             ].map((stat, index) => (
               <motion.div
                 key={stat.label}
